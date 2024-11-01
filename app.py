@@ -1,8 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-# Sample stock data with additional columns
+# Sample stock data with additional columns and stock symbols
 data = pd.DataFrame({
+    'stock_symbol': ['AAPL', 'MSFT', 'TSLA'],  # Add stock symbols here
     'payoutRatio': [10, 30, 60],
     'fiveYearAvgDividendYield': [1.5, 3, 5],
     'beta': [0.7, 1.0, 1.5],
@@ -82,7 +83,7 @@ if st.button("Get Stock List"):
         
         if not filtered_stocks.empty:
             st.write("### Stocks that match your criteria:")
-            st.dataframe(filtered_stocks)
+            st.dataframe(filtered_stocks[['stock_symbol'] + list(data.columns[1:])])  # Show stock symbol with other columns
         else:
             st.write("No stocks match the selected criteria.")
     else:
