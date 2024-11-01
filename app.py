@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import openai
 
 # Sample stock data with additional columns
 data = pd.DataFrame({
@@ -50,65 +49,42 @@ data['trailingAnnualDividendRate_Category'] = data['trailingAnnualDividendRate']
 st.title("Stock Filter & Strategy Builder")
 st.write("Filter stocks based on parameters like low beta, high dividend yield, low P/E ratio, and other criteria.")
 
-# Define the LLM Prompt Template
-prompt_template = """
-You are a financial assistant with access to a large stock dataset.
-Users will input parameters to filter stocks and build strategies.
-
-Available parameters for filtering include:
-- Low Beta (Beta < 1)
-- High Dividend Yield
-- Low P/E Ratio
-- Low Volatility
-- High Return on Investment
-- Payout Ratio
-- Five-Year Average Dividend Yield
-- Volume
-- Regular Market Volume
-- Average Volume
-- Average Volume (10 days)
-- Average Daily Volume (10 days)
-- 200-Day Moving Average
-- Trailing Annual Dividend Rate
-
-Columns in the dataset: {columns}
-
-User Query: "{user_query}"
-
-Response:
-"""
-
-# Initialize the OpenAI API client with your API key
-openai.api_key = "your-api-key-here"  # Replace with your actual OpenAI API key
-
-# Function to Query the LLM
-def query_llm(user_query):
-    columns = ", ".join(data.columns)
-    full_prompt = prompt_template.format(columns=columns, user_query=user_query)
-
-    # Send to OpenAI for completion
-    try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",  # Use appropriate model name
-            prompt=full_prompt,
-            max_tokens=150,
-            temperature=0.7
-        )
-        # Extract the response text
-        return response.choices[0].text.strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
-
 # Streamlit Input for User Query
-st.write("### Enter your filter criteria:")
-user_query = st.text_input("Example: 'List low beta stocks with high dividend yield and low P/E ratio'")
+st.write("### Enter your filter criteria (comma separated):")
+user_input = st.text_area("Example: 'low beta, high dividend yield, low P/E ratio'")
+
+# Function to filter stocks based on user input conditions
+def filter_stocks(df, conditions):
+    mask = pd.Series([True] * len(df))  # Start with all True (no filtering)
+
+    for condition in conditions:
+        condition = condition.strip().lower()  # Clean up condition input
+        
+        if "low beta" in condition:
+            mask &= (df['beta'] < 1)
+        elif "high dividend yield" in condition:
+            mask &= (df['fiveYearAvgDividendYield'] > 4)
+        elif "low p/e ratio" in condition:
+            mask &= (df['payoutRatio'] < 15)
+        elif "low volatility" in condition:
+            mask &= (df['volume'] < 1_000_000)
+        elif "high return on investment" in condition:
+            mask &= (df['trailingAnnualDividendRate'] > 3)
+        # Add more conditions based on user input as needed
+
+    return df[mask]
 
 # Button to Submit Query
 if st.button("Get Stock List"):
-    if user_query:
-        response = query_llm(user_query)
-        st.write("### Stocks that match your criteria:")
-        st.write(response)
+    if user_input:
+        conditions = [cond.strip().lower() for cond in user_input.split(',')]
+        filtered_stocks = filter_stocks(data, conditions)
+        
+        if not filtered_stocks.empty:
+            st.write("### Stocks that match your criteria:")
+            st.dataframe(filtered_stocks)
+        else:
+            st.write("No stocks match the selected criteria.")
     else:
         st.write("Please enter a query to filter stocks.")
 
